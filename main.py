@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import json, os
@@ -12,6 +12,7 @@ app.add_middleware(
 )
 
 STATUS_FILE = "status.json"
+API_PASSWORD = os.getenv("API_PASSWORD", "senha123")  # Troca depois
 
 def get_status():
     if not os.path.exists(STATUS_FILE):
@@ -32,18 +33,23 @@ def ler_status():
     return get_status()
 
 @app.post("/status/{novo_status}")
-def atualizar_status(novo_status: str):
-    emojis = {
-        "trabalhando": "💻",
-        "livre": "🎮",
-        "dormindo": "😴",
-        "estudando": "📚",
-        "offline": "💤"
+def atualizar_status(novo_status: str, senha: str = Header(None)):
+    if senha != API_PASSWORD:
+        raise HTTPException(status_code=401, detail="Senha incorreta. Sai daqui hacker 🥷")
+    
+    emoji_map = {
+        "online": "🟢",
+        "offline": "💤", 
+        "ocupado": "🔴",
+        "jogando": "🎮",
+        "dormindo": "😴"
     }
-    status_data = {
+    
+    novo_dado = {
         "status": novo_status,
-        "emoji": emojis.get(novo_status, "❓"),
+        "emoji": emoji_map.get(novo_status.lower(), "❓"),
         "ultima_atualizacao": datetime.now().strftime("%d/%m %H:%M")
     }
-    save_status(status_data)
-    return status_data
+    
+    save_status(novo_dado)
+    return novo_dado
